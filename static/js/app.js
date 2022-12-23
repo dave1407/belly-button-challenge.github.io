@@ -1,85 +1,202 @@
 const url = "https://2u-data-curriculum-team.s3.amazonaws.com/dataviz-classroom/v1.1/14-Interactive-Web-Visualizations/02-Homework/samples.json";
-const dataRead = d3.json(url);
+const data = d3.json(url);
+var names = dataNames();
+let ID = 0;
 
-var id = [];
-var otu_ids = [];
-var otu_labels = [];
-var sample_values = [];
+function dataNames(){
+   return data.then(function (inspect) {
+      let names = inspect.names;
+      return Promise.resolve(names);
+   });
+}
 
-dataRead.then(function (data) {
+function dataKeyRead(key, subkey, index){
+   return data.then(function (inspect) {
+      let keyresp = inspect[key];   
+      let subkeyresp = keyresp.map(function(key_read) {
+         return key_read[subkey];
+      });
+      let ind_resp = subkeyresp[index]
+      return Promise.resolve(ind_resp);
+   });
+}
 
-   var samples = data.samples;
-     // Loop through the array of films
-     for (var i = 0; i < samples.length; i++) {
-        // Store the film at index `i` for evaluation
-        row = samples[i];
-        // console.log(row)
-        id[i]= row.id;
-        otu_ids[i] = row.otu_ids;
-        otu_labels[i] = row.otu_labels;
-        sample_values[i] = row.sample_values;
-      }
-      
-      var ind_otu_ids = otu_ids[0]
-      var ind_sample_values = sample_values[0]
-      var ind_otu_labels = otu_labels[0]
+function getSample(sampleID){
+   let sample_values = dataKeyRead("samples", "sample_values", sampleID);
+   let otu_ids = dataKeyRead("samples", "otu_ids", sampleID);
+   let otu_labels = dataKeyRead("samples","otu_labels", sampleID);
+   return { sample_values, otu_ids, otu_labels };
+}
 
-      var top10pltx = ind_otu_ids.slice(0, 10);
-      var top10pltxrev = top10pltx.reverse();
-      var top10plty = ind_sample_values.slice(0, 10);     
-      var top10pltyrev = top10plty.reverse();
-      var top10pltlabels = ind_otu_labels.slice(0, 10);
-      var top10pltlabelsrev = top10pltlabels.reverse();
+function getMetadata(metadataID){
+   let id = dataKeyRead("metadata", "id", metadataID);
+   let ethnicity = dataKeyRead("metadata", "ethnicity", metadataID);
+   let gender = dataKeyRead("metadata","gender", metadataID);
+   let age = dataKeyRead("metadata", "age", metadataID);
+   let location = dataKeyRead("metadata", "location", metadataID);
+   let bbtype = dataKeyRead("metadata","bbtype", metadataID);
+   let wfreq = dataKeyRead("metadata", "wfreq", metadataID);
 
-   // Display the default plot
-   function initbar() {
-      let dataplt = [{
-         x: top10pltyrev,
-         y: top10pltxrev,
-         text: top10pltlabelsrev,
-         type: "bar",
-         orientation: 'h'
-      }];
-      
-      let layoutplt = {
-         "yaxis": {
-            "type":"category"
-         },
-         height: 600,
-         width: 800
-      };
-   
-      Plotly.newPlot("bar", dataplt, layoutplt);
+   return { id, ethnicity, gender, age, location, bbtype, wfreq };
+}
+
+function initdropdown() {
+   names.then(function(name){
+      let select = document.getElementById("selDataset");
+      for(let i = 0; i < name.length; i++) {
+         let opt = name[i];
+         let el = document.createElement("option");
+         el.textContent = opt;
+         el.value = opt;
+         select.appendChild(el);
    }
+   });
+}
+
+function bardisplay(subjectID) {
+   let sampleUpdate = getSample(subjectID);
+   sampleUpdate.sample_values.then(function(sample_values){
+      sampleUpdate.otu_ids.then(function(otu_ids){
+         sampleUpdate.otu_labels.then(function(otu_labels){
+
+            let top10otu_ids = otu_ids.slice(0, 10);
+            let top10otu_idsrev = top10otu_ids.reverse();
+            let top10sample_values = sample_values.slice(0, 10);     
+            let top10sample_valuesrev = top10sample_values.reverse();
+            let top10pltotu_labels = otu_labels.slice(0, 10);
+            let top10pltotu_labelsrev = top10pltotu_labels.reverse();
+            let top10otu_idsrevformatted = top10otu_idsrev.map(x => `OTU ${x}`);
+
+            let dataplt = [{
+               x: top10sample_valuesrev,
+               y: top10otu_idsrevformatted,
+               text: top10pltotu_labelsrev,
+               type: "bar",
+               orientation: 'h'
+            }];
+   
+            let layoutplt = {
+               "yaxis": {
+                  "type":"category"
+               },
+               height: 600,
+               width: 500,
+            };
+
+            Plotly.newPlot("bar", dataplt, layoutplt);
+
+         });
+      });  
+    });
+}
+
   
-   function initbubble() {
-      var trace1 = {
-         x: ind_otu_ids,
-         y: ind_sample_values,
-         text: ind_otu_labels,
-         mode: 'markers',
-         marker: {
-            size: ind_sample_values,
-            color: ind_otu_ids
-         }
-       };
+function bubbledisplay(subjectID) {
+   let sampleUpdate = getSample(subjectID);
+   sampleUpdate.sample_values.then(function(sample_values){
+      sampleUpdate.otu_ids.then(function(otu_ids){
+         sampleUpdate.otu_labels.then(function(otu_labels){
 
-      var dataplt = [trace1];
-      
-      var layoutplt = {
-         showlegend: false,
-         height: 600,
-         width: 800
-      };
+         let trace1 = {
+            x: otu_ids,
+            y: sample_values,
+            text: otu_labels,
+            mode: 'markers',
+            marker: {
+               size: sample_values,
+               color: otu_ids
+            }
+            };
+
+         let dataplt = [trace1];
+         
+         let layoutplt = {
+            showlegend: false,
+            height: 600,
+            width: 1200,
+            xaxis: {
+               title: {
+                 text: 'OTU ID',
+               },
+             },
+         };
+
+         Plotly.newPlot("bubble", dataplt, layoutplt);
+
+         });
+      });  
+   });
+}
+
+function gaugedisplay(subjectID) {
+   let metadataUpdate = getMetadata(subjectID);
+
+   metadataUpdate.wfreq.then(function(metadata){
+
+   var data = [
+      {
+      domain: { x: [0, 1], y: [0, 1] },
+      value: metadata,
+      title: {
+         text: `Belly Button Washing Frequency<br>Scrubs per Week`,
+         font: {
+            family:"Arial",
+            size:15,
+            color:'#000000'
+         }
+      },
+      type: "indicator",
+      mode: "gauge+number",
+      // delta: { reference: 400 },
+      gauge: { axis: { range: [null, 9] } }
+      }
+   ];
    
-      Plotly.newPlot("bubble", dataplt, layoutplt);
+   var layout = { width: 300, height: 400 };
+   Plotly.newPlot('gauge', data, layout);
+
+   });
+}
+
+function paneldisplay(subjectID) {
+   let select = document.getElementById("sample-metadata");
+   let metadataUpdate = getMetadata(subjectID);
+   let metadataKeys = Object.keys(metadataUpdate);
+
+   for(let i = 0; i < metadataKeys.length; i++) {
+      var key = metadataKeys[i]
+      metadataUpdate[key].then(function(metadata){
+         let el = document.createElement("p");
+         el.textContent = `${metadataKeys[i]}:${metadata}`;
+         select.append(el);
+      });
    }
 
-   initbar();
-   initbubble();
-      
-})
+}
 
-console.log(id)
-console.log(id.length)
-console.log(id[10])
+function panelupdate(subjectID){
+   let sel = document.getElementById("sample-metadata");  
+   while(sel.firstChild) {
+         sel.removeChild(sel.firstChild);
+   }
+   paneldisplay(subjectID);
+}
+
+
+function optionChanged(subjectID){
+   panelupdate(subjectID);
+   bardisplay(subjectID);
+   bubbledisplay(subjectID);
+   gaugedisplay(subjectID);
+}
+
+
+
+ 
+initdropdown();
+gaugedisplay(ID);
+bardisplay(ID);
+bubbledisplay(ID);
+paneldisplay(ID);
+
+ 
